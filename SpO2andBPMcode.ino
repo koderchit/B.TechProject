@@ -22,8 +22,8 @@ MAX30105 particleSensor;
 // Blynk IoT Connection
 
 char auth[] = BLYNK_AUTH_TOKEN;   // Authentication token of out blynk interface
-char ssid[] = "GalaxyM31DD46";    // Wifi credentials 
-char pass[] = "nlpl5308";         // Wifi Password
+char ssid[] = "iQOO Z7 Pro 5G";    // Wifi credentials 
+char pass[] = "koderchit";         // Wifi Password
 
 uint32_t tsLastReport = 0;        //stores the time the last update was sent to the blynk app
 
@@ -64,6 +64,9 @@ const int buttonPin = 18;
 // Initial Countdown
 long preva = 50;
 long a;
+
+//No finger Variables
+long NOFingerTime= 5000;
 
 // Finger Detection
 bool finger = true;
@@ -114,7 +117,7 @@ victor:
   // bufferLength = 100000; //buffer length of 100 stores 4 seconds of samples running at 25sps
   bufferLength = 100; //buffer length of 100 stores 4 seconds of samples running at 25sps
   long initialTime = millis(); // paperboy
-  long waitingTime = 15000;
+  long waitingTime = 6000;
 
   //read the first 100 samples, and determine the signal range
   for (byte i = 0 ; i < bufferLength ; i++)
@@ -135,8 +138,9 @@ victor:
     Serial.print(floatAvg);
     Serial.print(", Cal. spO2=");
     Serial.print(spo2Avg);
-
-    if (irValue < irThresh) {
+    bool f=1;
+    int startTimeVal=-1;
+    while (irValue < irThresh) {
       Serial.print(" No finger?");
       oled.clearDisplay();
       oled.setTextSize(2);
@@ -146,7 +150,24 @@ victor:
       oled.display();
       Blynk.virtualWrite(V0, 1);
       delay(1000);
-      goto victor;
+      while (particleSensor.available() == false) //do we have new data?
+        particleSensor.check(); //Check the sensor for new data
+      redBuffer[i] = particleSensor.getRed();
+      irBuffer[i] = particleSensor.getIR();
+      irValue = irBuffer[i];
+
+      
+      if(f)
+        {
+          f=0;
+          startTimeVal= millis();
+        }
+        else{
+          if(millis()-startTimeVal>NOFingerTime)
+          {
+            goto victor;        
+          }
+        }
     }
 
 
@@ -268,8 +289,9 @@ victor:
       Serial.print(spo2, DEC);
       Serial.print(", Cal. spo2=");
       Serial.print(spo2Avg);
-
-      if (irValue < irThresh) {
+      bool f=1;
+      int startTimeVal=-1;
+      while (irValue < irThresh) {
         Serial.print(" No finger?");
         finger = false;
         oled.clearDisplay();
@@ -280,7 +302,23 @@ victor:
         oled.display();
         Blynk.virtualWrite(V0, 1);
         delay(1000);
-        goto victor;
+        while (particleSensor.available() == false) //do we have new data?
+          particleSensor.check(); //Check the sensor for new data
+        redBuffer[i] = particleSensor.getRed();
+        irBuffer[i] = particleSensor.getIR();
+        irValue = irBuffer[i];
+
+        if(f)
+        {
+          f=0;
+          startTimeVal= millis();
+        }
+        else{
+          if(millis()-startTimeVal>NOFingerTime)
+          {
+            goto victor;        
+          }
+        }
       }
 
       Serial.println();
@@ -326,6 +364,8 @@ victor:
           preva = a;
         } else {
           if (!finger) {
+
+            //Code will never come in this part for execution
             oled.clearDisplay();
             oled.setTextSize(2);
             oled.setTextColor(1);
@@ -334,7 +374,7 @@ victor:
             oled.display();
             Blynk.virtualWrite(V0, 1);
             delay(1000);
-            goto victor;
+//            goto victor;
           } else {
 
             Blynk.virtualWrite(V3, int(spo2Avg));
@@ -494,9 +534,9 @@ void clearAllVar() {
   }
 
   // Maxim Variables
-  spo2 = 0; //SPO2 value
+  spo2 = 98; //SPO2 value
   validSPO2 = 0; //indicator to show if the SPO2 calculation is valid
-  heartRate = 0; //heart rate value
+  heartRate = 125; //heart rate value
   validHeartRate = 0; //indicator to show if the heart rate calculation is valid
 
   // Reading Calculations [BPM]
@@ -504,14 +544,14 @@ void clearAllVar() {
   beatAvg = 0;
   floatAvg = 0.0;
   for (int i = 0; i < RATE_SIZE; i++) {
-    rates[i] = 0;
+    rates[i] = heartRate;
   }
   rateSpot = 0;
   lastBeat = 0; //Time at which the last beat occurred
 
   // Reading Calculations [Spo2]
   for (int i = 0; i < RATE_SIZE_OX ; i++) {
-    rates_OX[i] = 0;
+    rates_OX[i] = spo2;
   }
   rateSpot_OX = 0;
   spo2Avg = 0.0;
